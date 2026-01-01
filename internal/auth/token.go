@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/machpay/machpay-cli/internal/config"
+	"github.com/machpay-xyz/machpay-cli/internal/config"
 )
 
 // User represents user info from JWT claims

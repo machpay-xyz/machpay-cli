@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/machpay/machpay-cli/internal/auth"
-	"github.com/machpay/machpay-cli/internal/tui"
+	"github.com/machpay-xyz/machpay-cli/internal/auth"
+	"github.com/machpay-xyz/machpay-cli/internal/tui"
 )
 
 var logoutCmd = &cobra.Command{

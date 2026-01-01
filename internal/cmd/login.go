@@ -26,9 +26,9 @@ import (
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 
-	"github.com/machpay/machpay-cli/internal/auth"
-	"github.com/machpay/machpay-cli/internal/config"
-	"github.com/machpay/machpay-cli/internal/tui"
+	"github.com/machpay-xyz/machpay-cli/internal/auth"
+	"github.com/machpay-xyz/machpay-cli/internal/config"
+	"github.com/machpay-xyz/machpay-cli/internal/tui"
 )
 
 var (

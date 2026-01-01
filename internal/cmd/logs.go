@@ -19,8 +19,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/machpay/machpay-cli/internal/gateway"
-	"github.com/machpay/machpay-cli/internal/tui"
+	"github.com/machpay-xyz/machpay-cli/internal/gateway"
+	"github.com/machpay-xyz/machpay-cli/internal/tui"
 )
 
 var (

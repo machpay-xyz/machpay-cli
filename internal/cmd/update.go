@@ -17,8 +17,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/machpay/machpay-cli/internal/gateway"
-	"github.com/machpay/machpay-cli/internal/tui"
+	"github.com/machpay-xyz/machpay-cli/internal/gateway"
+	"github.com/machpay-xyz/machpay-cli/internal/tui"
 )
 
 var updateCmd = &cobra.Command{
@@ -163,7 +163,7 @@ func updateCLI() error {
 	case "windows":
 		fmt.Println("    winget upgrade machpay")
 		fmt.Println()
-		fmt.Println("  Or download from: https://github.com/machpay/machpay-cli/releases")
+		fmt.Println("  Or download from: https://github.com/machpay-xyz/machpay-cli/releases")
 	default:
 		fmt.Println("    curl -fsSL https://machpay.xyz/install.sh | sh")
 	}

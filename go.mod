@@ -1,4 +1,4 @@
-module github.com/machpay/machpay-cli
+module github.com/machpay-xyz/machpay-cli
 
 go 1.22
 
