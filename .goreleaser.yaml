@@ -1,0 +1,193 @@
+# ============================================================
+# GoReleaser Configuration - MachPay CLI
+# ============================================================
+#
+# Automates multi-platform builds and releases.
+#
+# Usage:
+#   goreleaser check              - Validate config
+#   goreleaser build --snapshot   - Test build
+#   goreleaser release --clean    - Full release
+#
+# ============================================================
+
+version: 2
+
+project_name: machpay
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod verify
+
+builds:
+  - id: machpay
+    main: ./cmd/machpay
+    binary: machpay
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.ShortCommit}}
+      - -X main.date={{.Date}}
+    flags:
+      - -trimpath
+
+archives:
+  - id: default
+    name_template: >-
+      {{ .ProjectName }}_{{ .Os }}_{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-dev"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: '🚀 Features'
+      regexp: '^feat'
+      order: 0
+    - title: '🐛 Bug Fixes'
+      regexp: '^fix'
+      order: 1
+    - title: '⚡ Performance'
+      regexp: '^perf'
+      order: 2
+    - title: '📦 Dependencies'
+      regexp: '^deps'
+      order: 3
+    - title: '🔧 Other'
+      order: 999
+
+brews:
+  - name: machpay
+    repository:
+      owner: machpay
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://machpay.xyz"
+    description: "MachPay CLI - AI payment network orchestrator"
+    license: "MIT"
+    install: |
+      bin.install "machpay"
+    caveats: |
+      MachPay CLI installed! 🚀
+      
+      Get started:
+        machpay login     # Link your account
+        machpay setup     # Configure your node
+        machpay serve     # Start vendor gateway
+      
+      The gateway downloads automatically when needed.
+      
+      Documentation: https://docs.machpay.xyz/cli
+    test: |
+      system "#{bin}/machpay", "version"
+
+dockers:
+  - image_templates:
+      - "ghcr.io/machpay/cli:{{ .Tag }}"
+      - "ghcr.io/machpay/cli:v{{ .Major }}"
+      - "ghcr.io/machpay/cli:v{{ .Major }}.{{ .Minor }}"
+      - "ghcr.io/machpay/cli:latest"
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
+      - "--platform=linux/amd64,linux/arm64"
+    skip_push: "{{ if .IsSnapshot }}true{{ else }}false{{ end }}"
+
+release:
+  github:
+    owner: machpay
+    name: machpay-cli
+  draft: false
+  prerelease: auto
+  mode: append
+  name_template: "MachPay CLI v{{.Version}}"
+  header: |
+    ## MachPay CLI v{{.Version}}
+    
+    The AI payment network orchestrator.
+    
+    ### Installation
+    
+    **Homebrew (macOS/Linux):**
+    ```bash
+    brew install machpay/tap/machpay
+    ```
+    
+    **Curl (Linux/macOS):**
+    ```bash
+    curl -fsSL https://machpay.xyz/install.sh | sh
+    ```
+    
+    **PowerShell (Windows):**
+    ```powershell
+    iwr machpay.xyz/install.ps1 | iex
+    ```
+    
+    **Docker:**
+    ```bash
+    docker pull ghcr.io/machpay/cli:{{.Tag}}
+    ```
+    
+    ### Quick Start
+    
+    ```bash
+    machpay login     # Authenticate
+    machpay setup     # Configure your node
+    machpay serve     # Start vendor gateway
+    ```
+    
+    ---
+  footer: |
+    
+    ---
+    
+    **Full Changelog:** https://github.com/machpay/machpay-cli/compare/{{ .PreviousTag }}...{{ .Tag }}
+    
+    **Documentation:** https://docs.machpay.xyz/cli
+
+# Announce to Discord/Slack (optional - configure later)
+# announce:
+#   discord:
+#     enabled: true
+#     message_template: '🚀 MachPay CLI {{.Tag}} is out! {{ .ReleaseURL }}'
+

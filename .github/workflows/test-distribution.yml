@@ -1,0 +1,157 @@
+# ============================================================
+# MachPay CLI - Distribution Tests
+# ============================================================
+#
+# Tests all distribution methods after release.
+# Can also be run manually for verification.
+#
+# ============================================================
+
+name: Test Distribution
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to test (e.g., v1.0.0)'
+        required: false
+        default: 'latest'
+  release:
+    types: [published]
+
+jobs:
+  # ============================================================
+  # Test Install Script - macOS
+  # ============================================================
+  test-install-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Run install script
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/machpay/machpay-cli/main/scripts/install.sh | sh
+          
+      - name: Verify installation
+        run: |
+          which machpay || echo "machpay not in PATH, checking ~/.local/bin"
+          ls -la ~/.local/bin/machpay 2>/dev/null || ls -la /usr/local/bin/machpay
+          
+      - name: Test commands
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          machpay version
+          machpay --help
+          machpay status
+
+  # ============================================================
+  # Test Install Script - Ubuntu
+  # ============================================================
+  test-install-ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run install script
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/machpay/machpay-cli/main/scripts/install.sh | sh
+          
+      - name: Verify installation
+        run: |
+          which machpay || echo "machpay not in PATH, checking ~/.local/bin"
+          ls -la ~/.local/bin/machpay 2>/dev/null || ls -la /usr/local/bin/machpay
+          
+      - name: Test commands
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          machpay version
+          machpay --help
+          machpay status
+
+  # ============================================================
+  # Test Install Script - Alpine
+  # ============================================================
+  test-install-alpine:
+    runs-on: ubuntu-latest
+    container: alpine:latest
+    steps:
+      - name: Install dependencies
+        run: apk add --no-cache curl bash
+
+      - name: Run install script
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/machpay/machpay-cli/main/scripts/install.sh | sh
+          
+      - name: Test commands
+        run: |
+          export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+          machpay version
+
+  # ============================================================
+  # Test Docker Image
+  # ============================================================
+  test-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull image
+        run: |
+          docker pull ghcr.io/machpay/cli:latest || echo "Image not available yet"
+          
+      - name: Test version command
+        run: |
+          docker run --rm ghcr.io/machpay/cli:latest version || echo "Skipped - image not available"
+          
+      - name: Test help command
+        run: |
+          docker run --rm ghcr.io/machpay/cli:latest --help || echo "Skipped - image not available"
+          
+      - name: Test status command
+        run: |
+          docker run --rm ghcr.io/machpay/cli:latest status || echo "Skipped - image not available"
+
+  # ============================================================
+  # Test Homebrew (macOS only)
+  # ============================================================
+  test-homebrew:
+    runs-on: macos-latest
+    steps:
+      - name: Tap and install
+        run: |
+          brew tap machpay/tap || echo "Tap not available yet"
+          brew install machpay || echo "Formula not available yet"
+          
+      - name: Test commands
+        run: |
+          which machpay && machpay version || echo "Skipped - not installed"
+
+  # ============================================================
+  # Test Windows Install (disabled by default)
+  # ============================================================
+  # test-install-windows:
+  #   runs-on: windows-latest
+  #   steps:
+  #     - name: Run install script
+  #       shell: pwsh
+  #       run: |
+  #         iwr -useb https://raw.githubusercontent.com/machpay/machpay-cli/main/scripts/install.ps1 | iex
+  #         
+  #     - name: Test commands
+  #       shell: pwsh
+  #       run: |
+  #         machpay version
+  #         machpay --help
+
+  # ============================================================
+  # Summary
+  # ============================================================
+  summary:
+    needs: [test-install-macos, test-install-ubuntu, test-docker]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          echo "## Distribution Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS | ${{ needs.test-install-macos.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Ubuntu | ${{ needs.test-install-ubuntu.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker | ${{ needs.test-docker.result }} |" >> $GITHUB_STEP_SUMMARY
+

@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -108,10 +107,8 @@ func (pm *ProcessManager) Start() error {
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 
-	// Detach from parent process
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-	}
+	// Set platform-specific process attributes for detaching
+	setProcAttr(cmd)
 
 	// Start process
 	if err := cmd.Start(); err != nil {
@@ -209,8 +206,8 @@ func (pm *ProcessManager) Stop() error {
 		return ErrNotRunning
 	}
 
-	// Send SIGTERM for graceful shutdown
-	if err := process.Signal(syscall.SIGTERM); err != nil {
+	// Send graceful shutdown signal
+	if err := sendTermSignal(process); err != nil {
 		os.Remove(pm.PIDFile())
 		return ErrNotRunning
 	}
@@ -228,7 +225,7 @@ func (pm *ProcessManager) Stop() error {
 		return nil
 	case <-time.After(10 * time.Second):
 		// Force kill if graceful shutdown takes too long
-		process.Signal(syscall.SIGKILL)
+		sendKillSignal(process)
 		os.Remove(pm.PIDFile())
 		return nil
 	}
@@ -247,7 +244,7 @@ func (pm *ProcessManager) Kill() error {
 		return ErrNotRunning
 	}
 
-	if err := process.Signal(syscall.SIGKILL); err != nil {
+	if err := sendKillSignal(process); err != nil {
 		os.Remove(pm.PIDFile())
 		return ErrNotRunning
 	}
@@ -282,9 +279,7 @@ func (pm *ProcessManager) GetPID() (int, error) {
 
 // isProcessAlive checks if a process is alive
 func (pm *ProcessManager) isProcessAlive(process *os.Process) bool {
-	// Sending signal 0 checks if process exists without doing anything
-	err := process.Signal(syscall.Signal(0))
-	return err == nil
+	return isProcessAlive(process)
 }
 
 // ============================================================
