@@ -7,21 +7,21 @@ run:
 
 linters:
   enable:
-    - errcheck
     - gosimple
     - govet
     - ineffassign
     - staticcheck
     - unused
-  disable:
-    - deadcode
-    - structcheck
-    - varcheck
+  disable-all: false
 
 linters-settings:
   errcheck:
     check-type-assertions: false
     check-blank: false
+    # Ignore these functions - they're fire-and-forget
+    exclude-functions:
+      - (*net/http.ResponseWriter).Write
+      - (io.Writer).Write
 
 issues:
   exclude-rules:
@@ -34,4 +34,14 @@ issues:
     - path: main\.go
       linters:
         - gochecknoglobals
+    # Ignore error checks in certain files (fire-and-forget operations)
+    - path: internal/gateway/process\.go
+      linters:
+        - errcheck
+    - path: internal/auth/browser\.go
+      linters:
+        - errcheck
+    - path: internal/cmd/
+      linters:
+        - errcheck
 

@@ -21,7 +21,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
@@ -151,10 +150,5 @@ func runLogin(cmd *cobra.Command, args []string) error {
 	case <-ctx.Done():
 		return fmt.Errorf("login timed out after %v", auth.CallbackTimeout)
 	}
-}
-
-// Short delay to allow server to start
-func waitForServer() {
-	time.Sleep(100 * time.Millisecond)
 }
 
