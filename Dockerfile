@@ -2,42 +2,13 @@
 # MachPay CLI - Docker Image
 # ============================================================
 #
-# Multi-stage build for minimal image size.
+# Simple image that copies pre-built binary from GoReleaser.
 #
 # Usage:
-#   docker build -t machpay/cli .
-#   docker run --rm machpay/cli version
+#   docker run --rm ghcr.io/machpay-xyz/cli version
 #
 # ============================================================
 
-# Build stage
-FROM golang:1.22-alpine AS builder
-
-# Install dependencies
-RUN apk add --no-cache git ca-certificates tzdata
-
-WORKDIR /build
-
-# Cache dependencies
-COPY go.mod go.sum ./
-RUN go mod download
-
-# Copy source
-COPY . .
-
-# Build arguments
-ARG VERSION=dev
-ARG COMMIT=unknown
-ARG DATE=unknown
-
-# Build binary
-RUN CGO_ENABLED=0 GOOS=linux go build \
-    -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" \
-    -trimpath \
-    -o machpay \
-    ./cmd/machpay
-
-# Runtime stage
 FROM alpine:3.19
 
 # Install runtime dependencies
@@ -46,8 +17,11 @@ RUN apk add --no-cache \
     tzdata \
     curl
 
-# Copy binary from builder
-COPY --from=builder /build/machpay /usr/local/bin/machpay
+# Copy pre-built binary from GoReleaser
+COPY machpay /usr/local/bin/machpay
+
+# Make executable
+RUN chmod +x /usr/local/bin/machpay
 
 # Create non-root user
 RUN addgroup -g 1000 machpay && \
@@ -68,4 +42,3 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 # Default command
 ENTRYPOINT ["machpay"]
 CMD ["--help"]
-
