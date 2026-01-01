@@ -1,6 +1,6 @@
-# Binaries
-machpay
-machpay.exe
+# Binaries (only at root level)
+/machpay
+/machpay.exe
 /dist/
 /bin/
 
