@@ -1,0 +1,28 @@
+# Binaries
+machpay
+machpay.exe
+/dist/
+/bin/
+
+# Test coverage
+coverage.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+vendor/
+go.sum
+
+# Local config (contains tokens)
+.machpay/
+
