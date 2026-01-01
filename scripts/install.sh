@@ -1,254 +1,208 @@
-#!/bin/sh
+#!/bin/bash
 # ============================================================
 # MachPay CLI Installer
 # ============================================================
 #
 # Usage:
-#   curl -fsSL https://machpay.xyz/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/machpay-xyz/machpay-cli/main/scripts/install.sh | sh
 #
-# Environment variables:
+# Environment Variables:
+#   MACHPAY_VERSION    - Version to install (default: latest)
 #   MACHPAY_INSTALL_DIR - Installation directory (default: /usr/local/bin)
-#   MACHPAY_VERSION     - Specific version to install (default: latest)
 #
 # ============================================================
 
-set -e
+set -euo pipefail
 
 # Configuration
-GITHUB_REPO="machpay/machpay-cli"
+VERSION="${MACHPAY_VERSION:-latest}"
+INSTALL_DIR="${MACHPAY_INSTALL_DIR:-/usr/local/bin}"
+GITHUB_REPO="machpay-xyz/machpay-cli"
 BINARY_NAME="machpay"
-INSTALL_DIR="${MACHPAY_INSTALL_DIR:-}"
 
-# Colors (only if terminal supports them)
-if [ -t 1 ]; then
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[1;33m'
-    BLUE='\033[0;34m'
-    CYAN='\033[0;36m'
-    BOLD='\033[1m'
-    NC='\033[0m'
-else
-    RED=''
-    GREEN=''
-    YELLOW=''
-    BLUE=''
-    CYAN=''
-    BOLD=''
-    NC=''
-fi
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
 
-# Print functions
-info() { printf "${CYAN}→${NC} %s\n" "$1"; }
-success() { printf "${GREEN}✓${NC} %s\n" "$1"; }
-warn() { printf "${YELLOW}!${NC} %s\n" "$1"; }
-error() { printf "${RED}✗${NC} %s\n" "$1" >&2; exit 1; }
+# Logging functions
+info() { echo -e "${GREEN}▸${NC} $1"; }
+warn() { echo -e "${YELLOW}▸${NC} $1"; }
+error() { echo -e "${RED}✗${NC} $1" >&2; exit 1; }
+success() { echo -e "${GREEN}✓${NC} $1"; }
 
-# Banner
+# Print banner
 print_banner() {
-    printf "\n"
-    printf "${BLUE}███╗   ███╗ █████╗  ██████╗██╗  ██╗██████╗  █████╗ ██╗${NC}\n"
-    printf "${BLUE}████╗ ████║██╔══██╗██╔════╝██║  ██║██╔══██╗██╔══██╗╚██╗${NC}\n"
-    printf "${BLUE}██╔████╔██║███████║██║     ███████║██████╔╝███████║ ██║${NC}\n"
-    printf "${BLUE}██║╚██╔╝██║██╔══██║██║     ██╔══██║██╔═══╝ ██╔══██║ ██║${NC}\n"
-    printf "${BLUE}██║ ╚═╝ ██║██║  ██║╚██████╗██║  ██║██║     ██║  ██║██╔╝${NC}\n"
-    printf "${BLUE}╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚═╝${NC}\n"
-    printf "\n"
-    printf "${BOLD}CLI Installer${NC}\n"
-    printf "\n"
+    echo -e "${BLUE}"
+    echo "  __  __            _     ____             "
+    echo " |  \/  | __ _  ___| |__ |  _ \ __ _ _   _ "
+    echo " | |\/| |/ _\` |/ __| '_ \| |_) / _\` | | | |"
+    echo " | |  | | (_| | (__| | | |  __/ (_| | |_| |"
+    echo " |_|  |_|\__,_|\___|_| |_|_|   \__,_|\__, |"
+    echo "                                    |___/ "
+    echo -e "${NC}"
+    echo -e "${BOLD}MachPay CLI Installer${NC}"
+    echo ""
 }
 
-# Detect platform
-detect_platform() {
-    OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-    ARCH="$(uname -m)"
-
-    case "$ARCH" in
-        x86_64|amd64)   ARCH="amd64" ;;
-        aarch64|arm64)  ARCH="arm64" ;;
-        armv7l)         ARCH="arm" ;;
-        *)              error "Unsupported architecture: $ARCH" ;;
+# Detect operating system
+detect_os() {
+    local os
+    os=$(uname -s | tr '[:upper:]' '[:lower:]')
+    
+    case "$os" in
+        darwin) echo "darwin" ;;
+        linux) echo "linux" ;;
+        mingw*|msys*|cygwin*) error "Windows detected. Please use install.ps1 instead." ;;
+        *) error "Unsupported operating system: $os" ;;
     esac
+}
 
-    case "$OS" in
-        darwin)         OS="darwin" ;;
-        linux)          OS="linux" ;;
-        mingw*|msys*|cygwin*)
-            printf "${YELLOW}Windows detected.${NC}\n"
-            printf "\nPlease use PowerShell:\n"
-            printf "  ${CYAN}iwr machpay.xyz/install.ps1 | iex${NC}\n\n"
-            exit 1
-            ;;
-        *)              error "Unsupported OS: $OS" ;;
+# Detect CPU architecture
+detect_arch() {
+    local arch
+    arch=$(uname -m)
+    
+    case "$arch" in
+        x86_64|amd64) echo "amd64" ;;
+        aarch64|arm64) echo "arm64" ;;
+        armv7l) error "ARM 32-bit is not supported. Please use ARM64." ;;
+        *) error "Unsupported architecture: $arch" ;;
     esac
-
-    info "Platform: ${OS}/${ARCH}"
 }
 
-# Check for required commands
-check_requirements() {
-    for cmd in curl tar; do
-        if ! command -v "$cmd" >/dev/null 2>&1; then
-            error "Required command not found: $cmd"
-        fi
-    done
-}
-
-# Determine install directory
-determine_install_dir() {
-    if [ -n "$INSTALL_DIR" ]; then
-        # User specified
-        return
+# Get latest version from GitHub API
+get_latest_version() {
+    local version
+    version=$(curl -fsSL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null | 
+        grep '"tag_name"' | 
+        sed -E 's/.*"v([^"]+)".*/\1/' || true)
+    
+    if [ -z "$version" ]; then
+        error "Failed to fetch latest version. Check your internet connection."
     fi
+    
+    echo "$version"
+}
 
-    # Try /usr/local/bin first
-    if [ -d "/usr/local/bin" ] && [ -w "/usr/local/bin" ]; then
-        INSTALL_DIR="/usr/local/bin"
-    elif command -v sudo >/dev/null 2>&1; then
-        INSTALL_DIR="/usr/local/bin"
-        NEED_SUDO=1
+# Download file with progress
+download_file() {
+    local url="$1"
+    local output="$2"
+    
+    if command -v curl &>/dev/null; then
+        curl -fsSL --progress-bar "$url" -o "$output"
+    elif command -v wget &>/dev/null; then
+        wget -q --show-progress "$url" -O "$output"
     else
-        # Fall back to user directory
-        INSTALL_DIR="$HOME/.local/bin"
-        mkdir -p "$INSTALL_DIR"
-        ADD_TO_PATH=1
+        error "Neither curl nor wget found. Please install one of them."
     fi
-
-    info "Install directory: $INSTALL_DIR"
 }
 
-# Get latest version
-get_version() {
-    if [ -n "$MACHPAY_VERSION" ]; then
-        VERSION="$MACHPAY_VERSION"
+# Verify checksum
+verify_checksum() {
+    local file="$1"
+    local expected="$2"
+    
+    local actual
+    if command -v sha256sum &>/dev/null; then
+        actual=$(sha256sum "$file" | cut -d' ' -f1)
+    elif command -v shasum &>/dev/null; then
+        actual=$(shasum -a 256 "$file" | cut -d' ' -f1)
     else
-        info "Fetching latest version..."
-        VERSION=$(curl -sL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" | \
-            grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        warn "Cannot verify checksum (no sha256sum or shasum found)"
+        return 0
     fi
-
-    if [ -z "$VERSION" ]; then
-        error "Could not determine version. Check your internet connection."
+    
+    if [ "$actual" != "$expected" ]; then
+        error "Checksum verification failed!\nExpected: $expected\nActual:   $actual"
     fi
-
-    info "Version: $VERSION"
+    
+    success "Checksum verified"
 }
 
-# Download and install
-download_and_install() {
-    TARBALL="${BINARY_NAME}_${OS}_${ARCH}.tar.gz"
-    URL="https://github.com/${GITHUB_REPO}/releases/download/${VERSION}/${TARBALL}"
-    CHECKSUM_URL="https://github.com/${GITHUB_REPO}/releases/download/${VERSION}/checksums.txt"
-
-    # Create temp directory
-    TMP_DIR=$(mktemp -d)
-    trap 'rm -rf "$TMP_DIR"' EXIT
-
-    info "Downloading ${TARBALL}..."
-    if ! curl -sL --fail -o "$TMP_DIR/$TARBALL" "$URL"; then
-        error "Download failed. URL: $URL"
-    fi
-
-    # Verify checksum
-    info "Verifying checksum..."
-    CHECKSUMS=$(curl -sL "$CHECKSUM_URL")
-    if [ -z "$CHECKSUMS" ]; then
-        warn "Could not fetch checksums, skipping verification"
-    else
-        EXPECTED=$(echo "$CHECKSUMS" | grep "$TARBALL" | cut -d ' ' -f 1)
-
-        if command -v sha256sum >/dev/null 2>&1; then
-            ACTUAL=$(sha256sum "$TMP_DIR/$TARBALL" | cut -d ' ' -f 1)
-        elif command -v shasum >/dev/null 2>&1; then
-            ACTUAL=$(shasum -a 256 "$TMP_DIR/$TARBALL" | cut -d ' ' -f 1)
-        else
-            warn "Cannot verify checksum (no sha256sum or shasum)"
-            ACTUAL="$EXPECTED"
-        fi
-
-        if [ "$EXPECTED" != "$ACTUAL" ]; then
-            error "Checksum verification failed!\n  Expected: $EXPECTED\n  Actual:   $ACTUAL"
-        fi
-        success "Checksum verified"
-    fi
-
-    # Extract
-    info "Extracting..."
-    tar -xzf "$TMP_DIR/$TARBALL" -C "$TMP_DIR"
-
-    # Find binary (might be in a subdirectory)
-    BINARY_PATH="$TMP_DIR/$BINARY_NAME"
-    if [ ! -f "$BINARY_PATH" ]; then
-        BINARY_PATH=$(find "$TMP_DIR" -name "$BINARY_NAME" -type f | head -1)
-    fi
-
-    if [ ! -f "$BINARY_PATH" ]; then
-        error "Binary not found in archive"
-    fi
-
-    # Install
-    info "Installing to $INSTALL_DIR..."
-    if [ "$NEED_SUDO" = "1" ]; then
-        sudo mkdir -p "$INSTALL_DIR"
-        sudo mv "$BINARY_PATH" "$INSTALL_DIR/"
-        sudo chmod +x "$INSTALL_DIR/$BINARY_NAME"
-    else
-        mkdir -p "$INSTALL_DIR"
-        mv "$BINARY_PATH" "$INSTALL_DIR/"
-        chmod +x "$INSTALL_DIR/$BINARY_NAME"
-    fi
-
-    success "Installed to $INSTALL_DIR/$BINARY_NAME"
-}
-
-# Verify installation
-verify_installation() {
-    if command -v "$BINARY_NAME" >/dev/null 2>&1; then
-        INSTALLED_VERSION=$("$BINARY_NAME" version 2>/dev/null || echo "unknown")
-        success "Installation verified: $INSTALLED_VERSION"
-    elif [ -x "$INSTALL_DIR/$BINARY_NAME" ]; then
-        INSTALLED_VERSION=$("$INSTALL_DIR/$BINARY_NAME" version 2>/dev/null || echo "unknown")
-        success "Installation verified: $INSTALLED_VERSION"
-    else
-        warn "Could not verify installation"
-    fi
-}
-
-# Print success message
-print_success() {
-    printf "\n"
-    printf "${GREEN}╔════════════════════════════════════════════════════════════╗${NC}\n"
-    printf "${GREEN}║${NC}          ${BOLD}MachPay CLI installed successfully!${NC}            ${GREEN}║${NC}\n"
-    printf "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}\n"
-    printf "\n"
-
-    if [ "$ADD_TO_PATH" = "1" ]; then
-        printf "${YELLOW}Note:${NC} Add this to your shell profile (~/.bashrc, ~/.zshrc):\n"
-        printf "\n"
-        printf "  ${CYAN}export PATH=\"\$HOME/.local/bin:\$PATH\"${NC}\n"
-        printf "\n"
-    fi
-
-    printf "Get started:\n"
-    printf "  ${CYAN}machpay login${NC}     # Link your account\n"
-    printf "  ${CYAN}machpay setup${NC}     # Configure your node\n"
-    printf "  ${CYAN}machpay serve${NC}     # Start vendor gateway\n"
-    printf "\n"
-    printf "Documentation: ${BLUE}https://docs.machpay.xyz/cli${NC}\n"
-    printf "\n"
-}
-
-# Main
+# Main installation function
 main() {
     print_banner
-    check_requirements
-    detect_platform
-    determine_install_dir
-    get_version
-    download_and_install
-    verify_installation
-    print_success
+    
+    # Detect platform
+    local os arch platform
+    os=$(detect_os)
+    arch=$(detect_arch)
+    platform="${os}_${arch}"
+    info "Detected platform: ${BOLD}$platform${NC}"
+    
+    # Get version
+    if [ "$VERSION" = "latest" ]; then
+        info "Fetching latest version..."
+        VERSION=$(get_latest_version)
+    fi
+    info "Installing version: ${BOLD}v$VERSION${NC}"
+    
+    # Construct download URL
+    local download_url="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}/${BINARY_NAME}_${platform}.tar.gz"
+    local checksums_url="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}/checksums.txt"
+    
+    # Create temporary directory
+    local tmp_dir
+    tmp_dir=$(mktemp -d)
+    trap "rm -rf '$tmp_dir'" EXIT
+    
+    # Download binary
+    info "Downloading from GitHub..."
+    download_file "$download_url" "$tmp_dir/${BINARY_NAME}.tar.gz"
+    success "Download complete"
+    
+    # Download and verify checksum
+    info "Verifying checksum..."
+    download_file "$checksums_url" "$tmp_dir/checksums.txt"
+    local expected_checksum
+    expected_checksum=$(grep "${BINARY_NAME}_${platform}.tar.gz" "$tmp_dir/checksums.txt" | cut -d' ' -f1)
+    verify_checksum "$tmp_dir/${BINARY_NAME}.tar.gz" "$expected_checksum"
+    
+    # Extract
+    info "Extracting..."
+    tar -xzf "$tmp_dir/${BINARY_NAME}.tar.gz" -C "$tmp_dir"
+    success "Extracted successfully"
+    
+    # Install
+    info "Installing to $INSTALL_DIR..."
+    if [ -w "$INSTALL_DIR" ]; then
+        mv "$tmp_dir/$BINARY_NAME" "$INSTALL_DIR/$BINARY_NAME"
+    else
+        info "Requesting sudo access to install to $INSTALL_DIR..."
+        sudo mv "$tmp_dir/$BINARY_NAME" "$INSTALL_DIR/$BINARY_NAME"
+    fi
+    chmod +x "$INSTALL_DIR/$BINARY_NAME"
+    success "Installed to $INSTALL_DIR/$BINARY_NAME"
+    
+    # Verify installation
+    echo ""
+    if command -v "$BINARY_NAME" &>/dev/null; then
+        info "Verifying installation..."
+        "$BINARY_NAME" version
+        echo ""
+        echo -e "${GREEN}${BOLD}✅ MachPay CLI installed successfully!${NC}"
+        echo ""
+        echo "Get started with:"
+        echo -e "  ${BOLD}machpay login${NC}     # Authenticate"
+        echo -e "  ${BOLD}machpay setup${NC}     # Configure your node"
+        echo -e "  ${BOLD}machpay status${NC}    # Check status"
+        echo ""
+        echo "Documentation: https://docs.machpay.xyz/cli"
+    else
+        warn "Installation complete but 'machpay' not found in PATH"
+        echo ""
+        echo "Add $INSTALL_DIR to your PATH:"
+        echo "  export PATH=\"\$PATH:$INSTALL_DIR\""
+        echo ""
+        echo "Or run directly:"
+        echo "  $INSTALL_DIR/$BINARY_NAME version"
+    fi
 }
 
+# Run main function
 main "$@"
-

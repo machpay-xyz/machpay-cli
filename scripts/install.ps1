@@ -3,196 +3,153 @@
 # ============================================================
 #
 # Usage:
-#   iwr machpay.xyz/install.ps1 | iex
+#   iwr https://raw.githubusercontent.com/machpay-xyz/machpay-cli/main/scripts/install.ps1 | iex
 #
 # Or:
-#   iwr -useb https://machpay.xyz/install.ps1 | iex
-#
-# Environment variables:
-#   $env:MACHPAY_INSTALL_DIR - Installation directory
-#   $env:MACHPAY_VERSION     - Specific version to install
+#   .\install.ps1 [-Version "0.1.0"] [-InstallDir "$env:USERPROFILE\.machpay\bin"]
 #
 # ============================================================
+
+param(
+    [string]$Version = "latest",
+    [string]$InstallDir = "$env:USERPROFILE\.machpay\bin"
+)
 
 $ErrorActionPreference = "Stop"
 
 # Configuration
-$GitHubRepo = "machpay/machpay-cli"
-$BinaryName = "machpay.exe"
-$DefaultInstallDir = "$env:LOCALAPPDATA\MachPay"
+$GitHubRepo = "machpay-xyz/machpay-cli"
+$BinaryName = "machpay"
 
-function Write-Banner {
+# Colors
+function Write-Info { Write-Host "▸ $args" -ForegroundColor Cyan }
+function Write-Success { Write-Host "✓ $args" -ForegroundColor Green }
+function Write-Warn { Write-Host "▸ $args" -ForegroundColor Yellow }
+function Write-Err { Write-Host "✗ $args" -ForegroundColor Red }
+
+# Print banner
+function Show-Banner {
     Write-Host ""
-    Write-Host "███╗   ███╗ █████╗  ██████╗██╗  ██╗██████╗  █████╗ ██╗" -ForegroundColor Blue
-    Write-Host "████╗ ████║██╔══██╗██╔════╝██║  ██║██╔══██╗██╔══██╗╚██╗" -ForegroundColor Blue
-    Write-Host "██╔████╔██║███████║██║     ███████║██████╔╝███████║ ██║" -ForegroundColor Blue
-    Write-Host "██║╚██╔╝██║██╔══██║██║     ██╔══██║██╔═══╝ ██╔══██║ ██║" -ForegroundColor Blue
-    Write-Host "██║ ╚═╝ ██║██║  ██║╚██████╗██║  ██║██║     ██║  ██║██╔╝" -ForegroundColor Blue
-    Write-Host "╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚═╝" -ForegroundColor Blue
+    Write-Host "  __  __            _     ____             " -ForegroundColor Blue
+    Write-Host " |  \/  | __ _  ___| |__ |  _ \ __ _ _   _ " -ForegroundColor Blue
+    Write-Host " | |\/| |/ _`` |/ __| '_ \| |_) / _`` | | | |" -ForegroundColor Blue
+    Write-Host " | |  | | (_| | (__| | | |  __/ (_| | |_| |" -ForegroundColor Blue
+    Write-Host " |_|  |_|\__,_|\___|_| |_|_|   \__,_|\__, |" -ForegroundColor Blue
+    Write-Host "                                    |___/ " -ForegroundColor Blue
     Write-Host ""
-    Write-Host "CLI Installer for Windows" -ForegroundColor White
+    Write-Host "MachPay CLI Installer for Windows" -ForegroundColor White
     Write-Host ""
 }
 
-function Write-Info {
-    param([string]$Message)
-    Write-Host "→ " -ForegroundColor Cyan -NoNewline
-    Write-Host $Message
-}
-
-function Write-Success {
-    param([string]$Message)
-    Write-Host "✓ " -ForegroundColor Green -NoNewline
-    Write-Host $Message
-}
-
-function Write-Warn {
-    param([string]$Message)
-    Write-Host "! " -ForegroundColor Yellow -NoNewline
-    Write-Host $Message
-}
-
-function Get-Architecture {
-    if ([Environment]::Is64BitOperatingSystem) {
-        return "amd64"
-    } else {
-        throw "32-bit Windows is not supported"
-    }
-}
-
+# Get latest version from GitHub
 function Get-LatestVersion {
-    Write-Info "Fetching latest version..."
-    
     try {
-        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$GitHubRepo/releases/latest" -Headers @{
-            "User-Agent" = "MachPay-Installer"
-        }
-        return $release.tag_name
-    } catch {
-        throw "Could not fetch latest version: $_"
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$GitHubRepo/releases/latest"
+        return $release.tag_name -replace '^v', ''
+    }
+    catch {
+        Write-Err "Failed to fetch latest version: $_"
+        exit 1
     }
 }
 
-function Get-InstallDir {
-    if ($env:MACHPAY_INSTALL_DIR) {
-        return $env:MACHPAY_INSTALL_DIR
-    }
-    return $DefaultInstallDir
-}
-
+# Main installation
 function Install-MachPay {
-    Write-Banner
-    
-    # Get version
-    $version = if ($env:MACHPAY_VERSION) {
-        $env:MACHPAY_VERSION
-    } else {
-        Get-LatestVersion
+    Show-Banner
+
+    # Determine version
+    if ($Version -eq "latest") {
+        Write-Info "Fetching latest version..."
+        $Version = Get-LatestVersion
     }
-    Write-Info "Version: $version"
+    Write-Info "Installing version: v$Version"
+
+    # Windows is always amd64
+    $Platform = "windows_amd64"
+    $ArchiveExt = "zip"
     
-    # Get architecture
-    $arch = Get-Architecture
-    Write-Info "Architecture: windows/$arch"
-    
-    # Get install directory
-    $installDir = Get-InstallDir
-    Write-Info "Install directory: $installDir"
-    
-    # Build download URL
-    $zipName = "machpay_windows_$arch.zip"
-    $downloadUrl = "https://github.com/$GitHubRepo/releases/download/$version/$zipName"
-    $checksumUrl = "https://github.com/$GitHubRepo/releases/download/$version/checksums.txt"
-    
-    # Create install directory
-    if (-not (Test-Path $installDir)) {
-        New-Item -ItemType Directory -Path $installDir -Force | Out-Null
-    }
-    
+    # Construct URLs
+    $DownloadUrl = "https://github.com/$GitHubRepo/releases/download/v$Version/${BinaryName}_${Platform}.${ArchiveExt}"
+    $ChecksumsUrl = "https://github.com/$GitHubRepo/releases/download/v$Version/checksums.txt"
+
     # Create temp directory
-    $tempDir = Join-Path $env:TEMP "machpay-install-$(Get-Random)"
-    New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+    $TempDir = New-Item -ItemType Directory -Path (Join-Path $env:TEMP "machpay-install-$(Get-Random)")
     
     try {
-        # Download
-        Write-Info "Downloading $zipName..."
-        $zipPath = Join-Path $tempDir $zipName
-        
-        try {
-            Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -UseBasicParsing
-        } catch {
-            throw "Download failed: $_"
-        }
+        # Download archive
+        Write-Info "Downloading from GitHub..."
+        $ArchivePath = Join-Path $TempDir "$BinaryName.$ArchiveExt"
+        Invoke-WebRequest -Uri $DownloadUrl -OutFile $ArchivePath -UseBasicParsing
+        Write-Success "Download complete"
+
+        # Download checksums
+        Write-Info "Verifying checksum..."
+        $ChecksumsPath = Join-Path $TempDir "checksums.txt"
+        Invoke-WebRequest -Uri $ChecksumsUrl -OutFile $ChecksumsPath -UseBasicParsing
         
         # Verify checksum
-        Write-Info "Verifying checksum..."
-        try {
-            $checksums = (Invoke-WebRequest -Uri $checksumUrl -UseBasicParsing).Content
-            $expectedHash = ($checksums -split "`n" | Where-Object { $_ -match $zipName } | Select-Object -First 1) -replace "\s.*", ""
-            $actualHash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLower()
-            
-            if ($expectedHash -and $expectedHash -ne $actualHash) {
-                throw "Checksum verification failed!`n  Expected: $expectedHash`n  Actual:   $actualHash"
-            }
-            Write-Success "Checksum verified"
-        } catch {
-            Write-Warn "Could not verify checksum: $_"
-        }
+        $ExpectedChecksum = (Get-Content $ChecksumsPath | Where-Object { $_ -match "${BinaryName}_${Platform}.${ArchiveExt}" }) -split '\s+' | Select-Object -First 1
+        $ActualChecksum = (Get-FileHash -Path $ArchivePath -Algorithm SHA256).Hash.ToLower()
         
+        if ($ExpectedChecksum -ne $ActualChecksum) {
+            Write-Err "Checksum verification failed!"
+            Write-Host "Expected: $ExpectedChecksum"
+            Write-Host "Actual:   $ActualChecksum"
+            exit 1
+        }
+        Write-Success "Checksum verified"
+
         # Extract
         Write-Info "Extracting..."
-        Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
-        
-        # Find binary
-        $binaryPath = Get-ChildItem -Path $tempDir -Filter $BinaryName -Recurse | Select-Object -First 1
-        if (-not $binaryPath) {
-            throw "Binary not found in archive"
+        $ExtractPath = Join-Path $TempDir "extracted"
+        Expand-Archive -Path $ArchivePath -DestinationPath $ExtractPath -Force
+        Write-Success "Extracted successfully"
+
+        # Create install directory
+        if (-not (Test-Path $InstallDir)) {
+            New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
         }
-        
-        # Install
-        Write-Info "Installing..."
-        Copy-Item -Path $binaryPath.FullName -Destination (Join-Path $installDir $BinaryName) -Force
-        
-        # Add to PATH
-        $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
-        if ($userPath -notlike "*$installDir*") {
-            Write-Info "Adding to PATH..."
-            [Environment]::SetEnvironmentVariable("Path", "$userPath;$installDir", "User")
-            $env:Path = "$env:Path;$installDir"
+
+        # Install binary
+        Write-Info "Installing to $InstallDir..."
+        $BinaryPath = Get-ChildItem -Path $ExtractPath -Filter "$BinaryName.exe" -Recurse | Select-Object -First 1
+        if (-not $BinaryPath) {
+            $BinaryPath = Get-ChildItem -Path $ExtractPath -Filter "$BinaryName" -Recurse | Select-Object -First 1
         }
-        
-        Write-Success "Installed to $installDir\$BinaryName"
-        
-        # Verify
+        Copy-Item -Path $BinaryPath.FullName -Destination (Join-Path $InstallDir "$BinaryName.exe") -Force
+        Write-Success "Installed to $InstallDir\$BinaryName.exe"
+
+        # Add to PATH if not already there
+        $CurrentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+        if ($CurrentPath -notlike "*$InstallDir*") {
+            Write-Info "Adding $InstallDir to PATH..."
+            [Environment]::SetEnvironmentVariable("PATH", "$CurrentPath;$InstallDir", "User")
+            $env:PATH = "$env:PATH;$InstallDir"
+            Write-Success "Added to PATH"
+        }
+
+        # Verify installation
+        Write-Host ""
         Write-Info "Verifying installation..."
-        $installedVersion = & (Join-Path $installDir $BinaryName) version 2>&1
-        Write-Success "Installation verified: $installedVersion"
+        & "$InstallDir\$BinaryName.exe" version
         
-        # Success message
         Write-Host ""
-        Write-Host "╔════════════════════════════════════════════════════════════╗" -ForegroundColor Green
-        Write-Host "║          MachPay CLI installed successfully!               ║" -ForegroundColor Green
-        Write-Host "╚════════════════════════════════════════════════════════════╝" -ForegroundColor Green
+        Write-Host "✅ MachPay CLI installed successfully!" -ForegroundColor Green
         Write-Host ""
-        Write-Host "Restart your terminal, then run:" -ForegroundColor White
+        Write-Host "Get started with:"
+        Write-Host "  machpay login     # Authenticate" -ForegroundColor White
+        Write-Host "  machpay setup     # Configure your node" -ForegroundColor White
+        Write-Host "  machpay status    # Check status" -ForegroundColor White
         Write-Host ""
-        Write-Host "  machpay login     " -ForegroundColor Cyan -NoNewline
-        Write-Host "# Link your account"
-        Write-Host "  machpay setup     " -ForegroundColor Cyan -NoNewline
-        Write-Host "# Configure your node"
-        Write-Host "  machpay serve     " -ForegroundColor Cyan -NoNewline
-        Write-Host "# Start vendor gateway"
+        Write-Host "Documentation: https://docs.machpay.xyz/cli"
         Write-Host ""
-        Write-Host "Documentation: " -NoNewline
-        Write-Host "https://docs.machpay.xyz/cli" -ForegroundColor Blue
-        Write-Host ""
-        
-    } finally {
+        Write-Warn "Note: You may need to restart your terminal for PATH changes to take effect."
+    }
+    finally {
         # Cleanup
-        Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 
-# Run installer
+# Run installation
 Install-MachPay
-

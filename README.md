@@ -1,9 +1,10 @@
 # MachPay CLI
 
-[![Build](https://github.com/machpay/machpay-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/machpay/machpay-cli/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/machpay/machpay-cli)](https://github.com/machpay/machpay-cli/releases)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/machpay/machpay-cli)](go.mod)
+[![Release](https://img.shields.io/github/v/release/machpay-xyz/machpay-cli)](https://github.com/machpay-xyz/machpay-cli/releases)
+[![Build](https://github.com/machpay-xyz/machpay-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/machpay-xyz/machpay-cli/actions/workflows/ci.yml)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/machpay-xyz/machpay-cli)](go.mod)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io%2Fmachpay--xyz%2Fcli-blue)](https://ghcr.io/machpay-xyz/cli)
 
 The unified command-line interface for the **MachPay AI Payment Network**.
 
@@ -45,8 +46,10 @@ iwr machpay.xyz/install.ps1 | iex
 
 **Docker:**
 ```bash
-docker pull ghcr.io/machpay/cli:latest
+docker pull ghcr.io/machpay-xyz/cli:latest
 ```
+
+> 📖 See [INSTALL.md](INSTALL.md) for all installation options and troubleshooting.
 
 ### First Steps
 

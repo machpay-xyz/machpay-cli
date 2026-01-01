@@ -110,14 +110,24 @@ changelog:
 #       system "#{bin}/machpay", "version"
 
 # Docker images (requires GHCR permissions)
-# Uncomment when ready to publish Docker images
-# dockers:
-#   - image_templates:
-#       - "ghcr.io/machpay-xyz/cli:{{ .Tag }}"
-#       - "ghcr.io/machpay-xyz/cli:latest"
-#     dockerfile: Dockerfile
-#     use: buildx
-#     goarch: amd64
+dockers:
+  - image_templates:
+      - "ghcr.io/machpay-xyz/cli:{{ .Tag }}"
+      - "ghcr.io/machpay-xyz/cli:v{{ .Major }}"
+      - "ghcr.io/machpay-xyz/cli:v{{ .Major }}.{{ .Minor }}"
+      - "ghcr.io/machpay-xyz/cli:latest"
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.source=https://github.com/machpay-xyz/machpay-cli"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.title=MachPay CLI"
+      - "--label=org.opencontainers.image.description=CLI for the MachPay AI payment network"
+    goos: linux
+    goarch: amd64
 
 release:
   github:
