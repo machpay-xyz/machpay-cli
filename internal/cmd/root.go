@@ -33,18 +33,32 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "machpay",
 	Short: "MachPay CLI - Orchestrator for AI agent payments",
-	Long: `MachPay CLI is the unified entry point for the MachPay Network.
+	Long: `
+███╗   ███╗ █████╗  ██████╗██╗  ██╗██████╗  █████╗ ██╗   ██╗
+████╗ ████║██╔══██╗██╔════╝██║  ██║██╔══██╗██╔══██╗╚██╗ ██╔╝
+██╔████╔██║███████║██║     ███████║██████╔╝███████║ ╚████╔╝ 
+██║╚██╔╝██║██╔══██║██║     ██╔══██║██╔═══╝ ██╔══██║  ╚██╔╝  
+██║ ╚═╝ ██║██║  ██║╚██████╗██║  ██║██║     ██║  ██║   ██║   
+╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝   ╚═╝   
 
-For Agents: A wallet and payment tool for AI services.
-For Vendors: An orchestrator that downloads and runs the payment gateway.
-For Everyone: The onboarding wizard.
+MachPay CLI is the unified entry point for the MachPay Network.
 
-Get started:
+ROLES:
+  Agent   - Wallet and payment tool for AI services
+  Vendor  - Orchestrator that downloads and runs the payment gateway
+
+QUICK START:
   machpay login     Authenticate with MachPay
   machpay setup     Interactive setup wizard
   machpay status    Show current status
 
-Documentation: https://docs.machpay.xyz/cli`,
+VENDOR COMMANDS:
+  machpay serve     Start the payment gateway
+  machpay stop      Stop the gateway
+  machpay logs      View gateway logs
+
+DOCUMENTATION:
+  https://docs.machpay.xyz/cli`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Skip initialization for version and help
 		if cmd.Name() == "version" || cmd.Name() == "help" {
@@ -102,6 +116,11 @@ func init() {
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version information",
+	Long: `Display the current version of MachPay CLI.
+
+With --debug flag, also shows commit hash and build date.`,
+	Example: `  machpay version
+  machpay version --debug`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Printf("%s version %s\n", tui.Bold("machpay"), tui.Success(versionInfo.Version))
 		if debug {

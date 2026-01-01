@@ -46,6 +46,11 @@ be automatically authenticated.
 
 If you're on a headless system without a browser, use --no-browser
 to get a URL you can open on another device.`,
+	Example: `  # Standard login (opens browser)
+  machpay login
+
+  # Headless mode for SSH/CI environments
+  machpay login --no-browser`,
 	RunE: runLogin,
 }
 
