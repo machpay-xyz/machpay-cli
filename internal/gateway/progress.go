@@ -112,6 +112,7 @@ type Spinner struct {
 	Writer  io.Writer
 	Message string
 	done    chan struct{}
+	wg      sync.WaitGroup
 	mu      sync.Mutex
 	running bool
 }
@@ -134,18 +135,24 @@ func (s *Spinner) Start() {
 	}
 	s.running = true
 	s.done = make(chan struct{})
+	// Copy values to avoid race with Stop()
+	writer := s.Writer
+	message := s.Message
+	done := s.done
+	s.wg.Add(1)
 	s.mu.Unlock()
 
 	frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
 	go func() {
+		defer s.wg.Done()
 		i := 0
 		for {
 			select {
-			case <-s.done:
+			case <-done:
 				return
 			default:
-				fmt.Fprintf(s.Writer, "\r  %s %s", frames[i%len(frames)], s.Message)
+				fmt.Fprintf(writer, "\r  %s %s", frames[i%len(frames)], message)
 				i++
 				time.Sleep(80 * time.Millisecond)
 			}
@@ -156,14 +163,17 @@ func (s *Spinner) Start() {
 // Stop stops the spinner with a status
 func (s *Spinner) Stop(success bool) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if !s.running {
+		s.mu.Unlock()
 		return
 	}
 
 	close(s.done)
 	s.running = false
+	s.mu.Unlock()
+
+	// Wait for goroutine to exit before writing final message
+	s.wg.Wait()
 
 	if success {
 		fmt.Fprintf(s.Writer, "\r  ✓ %s\n", s.Message)
@@ -175,14 +185,17 @@ func (s *Spinner) Stop(success bool) {
 // StopWithMessage stops the spinner with a custom message
 func (s *Spinner) StopWithMessage(success bool, message string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if !s.running {
+		s.mu.Unlock()
 		return
 	}
 
 	close(s.done)
 	s.running = false
+	s.mu.Unlock()
+
+	// Wait for goroutine to exit before writing final message
+	s.wg.Wait()
 
 	if success {
 		fmt.Fprintf(s.Writer, "\r  ✓ %s\n", message)
