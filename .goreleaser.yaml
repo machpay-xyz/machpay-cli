@@ -123,6 +123,7 @@ dockers:
       - "ghcr.io/machpay-xyz/cli:latest"
     dockerfile: Dockerfile
     use: buildx
+    goarch: amd64
     build_flag_templates:
       - "--pull"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -130,7 +131,7 @@ dockers:
       - "--label=org.opencontainers.image.revision={{.FullCommit}}"
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
-      - "--platform=linux/amd64,linux/arm64"
+      - "--platform=linux/amd64"
     skip_push: "{{ if .IsSnapshot }}true{{ else }}false{{ end }}"
 
 release:
