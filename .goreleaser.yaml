@@ -48,9 +48,12 @@ archives:
   - id: default
     name_template: >-
       {{ .ProjectName }}_{{ .Os }}_{{ .Arch }}
+    formats:
+      - tar.gz
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
     files:
       - LICENSE
       - README.md
@@ -89,50 +92,32 @@ changelog:
     - title: '🔧 Other'
       order: 999
 
-brews:
-  - name: machpay
-    repository:
-      owner: machpay-xyz
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
-    homepage: "https://machpay.xyz"
-    description: "MachPay CLI - AI payment network orchestrator"
-    license: "MIT"
-    install: |
-      bin.install "machpay"
-    caveats: |
-      MachPay CLI installed! 🚀
-      
-      Get started:
-        machpay login     # Link your account
-        machpay setup     # Configure your node
-        machpay serve     # Start vendor gateway
-      
-      The gateway downloads automatically when needed.
-      
-      Documentation: https://docs.machpay.xyz/cli
-    test: |
-      system "#{bin}/machpay", "version"
+# Homebrew formula (requires HOMEBREW_TAP_TOKEN secret)
+# Uncomment when ready to publish to Homebrew
+# brews:
+#   - name: machpay
+#     repository:
+#       owner: machpay-xyz
+#       name: homebrew-tap
+#       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+#     directory: Formula
+#     homepage: "https://machpay.xyz"
+#     description: "MachPay CLI - AI payment network orchestrator"
+#     license: "MIT"
+#     install: |
+#       bin.install "machpay"
+#     test: |
+#       system "#{bin}/machpay", "version"
 
-dockers:
-  - image_templates:
-      - "ghcr.io/machpay-xyz/cli:{{ .Tag }}"
-      - "ghcr.io/machpay-xyz/cli:v{{ .Major }}"
-      - "ghcr.io/machpay-xyz/cli:v{{ .Major }}.{{ .Minor }}"
-      - "ghcr.io/machpay-xyz/cli:latest"
-    dockerfile: Dockerfile
-    use: buildx
-    goarch: amd64
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source={{.GitURL}}"
-      - "--platform=linux/amd64"
-    skip_push: "{{ if .IsSnapshot }}true{{ else }}false{{ end }}"
+# Docker images (requires GHCR permissions)
+# Uncomment when ready to publish Docker images
+# dockers:
+#   - image_templates:
+#       - "ghcr.io/machpay-xyz/cli:{{ .Tag }}"
+#       - "ghcr.io/machpay-xyz/cli:latest"
+#     dockerfile: Dockerfile
+#     use: buildx
+#     goarch: amd64
 
 release:
   github:

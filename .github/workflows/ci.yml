@@ -1,38 +1,63 @@
-# ============================================================
-# MachPay CLI - CI Workflow
-# ============================================================
-#
-# Runs on all pushes and PRs to ensure code quality.
-#
-# ============================================================
+# CI workflow - runs on PRs and pushes to main
+# Tests on multiple platforms, runs linter, validates GoReleaser
 
 name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
-
-permissions:
-  contents: read
+    branches: [main]
 
 jobs:
-  # ============================================================
-  # Lint
-  # ============================================================
-  lint:
-    runs-on: ubuntu-latest
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Go
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.21'
+          cache: true
+
+      - name: Download Dependencies
+        run: go mod download
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run Tests
+        run: go test -race -coverprofile=coverage.out -covermode=atomic -v ./...
+
+      - name: Upload Coverage
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.out
+          fail_ci_if_error: false
+        continue-on-error: true
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
           cache: true
 
       - name: Run golangci-lint
@@ -41,82 +66,30 @@ jobs:
           version: latest
           args: --timeout=5m
 
-  # ============================================================
-  # Test
-  # ============================================================
-  test:
+  goreleaser-check:
+    name: GoReleaser Check
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-          cache: true
-
-      - name: Run tests
-        run: go test -v -race -coverprofile=coverage.out ./...
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
-        with:
-          file: coverage.out
-          fail_ci_if_error: false
-
-  # ============================================================
-  # Build (all platforms)
-  # ============================================================
-  build:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        goos: [linux, darwin, windows]
-        goarch: [amd64, arm64]
-        exclude:
-          - goos: windows
-            goarch: arm64
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-          cache: true
-
-      - name: Build
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 0
-        run: |
-          go build -ldflags="-s -w" -o machpay-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/machpay
-          ls -la machpay-*
-
-  # ============================================================
-  # GoReleaser check
-  # ============================================================
-  goreleaser:
-    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Go
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.21'
           cache: true
 
-      - name: Validate GoReleaser build
-        uses: goreleaser/goreleaser-action@v6
+      - name: Check GoReleaser Config
+        uses: goreleaser/goreleaser-action@v5
         with:
-          distribution: goreleaser
-          version: "~> v2"
-          args: build --snapshot --clean --single-target
+          version: latest
+          args: check
 
+      - name: Test GoReleaser Build
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          version: latest
+          args: release --snapshot --clean --skip=publish
