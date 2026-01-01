@@ -1,0 +1,37 @@
+# GolangCI-Lint Configuration
+# https://golangci-lint.run/usage/configuration/
+
+run:
+  timeout: 5m
+  go: '1.22'
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+  disable:
+    - deadcode
+    - structcheck
+    - varcheck
+
+linters-settings:
+  errcheck:
+    check-type-assertions: false
+    check-blank: false
+
+issues:
+  exclude-rules:
+    # Ignore test files
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+    # Ignore main.go for some checks
+    - path: main\.go
+      linters:
+        - gochecknoglobals
+

@@ -92,7 +92,7 @@ changelog:
 brews:
   - name: machpay
     repository:
-      owner: machpay
+      owner: machpay-xyz
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     directory: Formula
@@ -117,10 +117,10 @@ brews:
 
 dockers:
   - image_templates:
-      - "ghcr.io/machpay/cli:{{ .Tag }}"
-      - "ghcr.io/machpay/cli:v{{ .Major }}"
-      - "ghcr.io/machpay/cli:v{{ .Major }}.{{ .Minor }}"
-      - "ghcr.io/machpay/cli:latest"
+      - "ghcr.io/machpay-xyz/cli:{{ .Tag }}"
+      - "ghcr.io/machpay-xyz/cli:v{{ .Major }}"
+      - "ghcr.io/machpay-xyz/cli:v{{ .Major }}.{{ .Minor }}"
+      - "ghcr.io/machpay-xyz/cli:latest"
     dockerfile: Dockerfile
     use: buildx
     build_flag_templates:
@@ -135,7 +135,7 @@ dockers:
 
 release:
   github:
-    owner: machpay
+    owner: machpay-xyz
     name: machpay-cli
   draft: false
   prerelease: auto
@@ -181,7 +181,7 @@ release:
     
     ---
     
-    **Full Changelog:** https://github.com/machpay/machpay-cli/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog:** https://github.com/machpay-xyz/machpay-cli/compare/{{ .PreviousTag }}...{{ .Tag }}
     
     **Documentation:** https://docs.machpay.xyz/cli
 

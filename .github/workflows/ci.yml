@@ -118,5 +118,5 @@ jobs:
         with:
           distribution: goreleaser
           version: latest
-          args: check
+          args: check --deprecated
 
