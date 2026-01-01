@@ -93,7 +93,9 @@ func init() {
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(setupCmd)
 	rootCmd.AddCommand(openCmd)
-	// rootCmd.AddCommand(serveCmd)   // TODO: Phase 3
+	rootCmd.AddCommand(serveCmd)
+	rootCmd.AddCommand(stopCmd)
+	rootCmd.AddCommand(restartCmd)
 }
 
 // versionCmd shows version information
